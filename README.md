@@ -7,8 +7,8 @@ Production-ready foundation for a web + mobile (PWA) platform that:
 - Tracks daily free use + paid credits/subscriptions
 
 **Core docs**  
-- Slides: `answer.pptx` (quick overview of scope/plan).  
-- Implementation Guide: `image-restoration-platform.md` (full build spec).  
+- Slides: `answer.pptx` (quick overview of scope/plan).  :contentReference[oaicite:2]{index=2}
+- Implementation Guide: `image-restoration-platform.md` (full build spec).  :contentReference[oaicite:3]{index=3}
 - Architecture + Mermaid: `docs/ARCHITECTURE.md`.
 
 ## Get started
@@ -19,7 +19,7 @@ Choose a backend:
 See `web/README.md` to scaffold a Next.js 14 PWA.
 
 ## Key features
-- Degradation classification → meta‑prompting → restoration
-- Multi‑image fusion (≤3 images/call)
+- Degradation classification → meta-prompting → restoration
+- Multi-image fusion (≤3 images/call)
 - Credits + rate limiting (2–3 free/day, then Stripe)
 - Queue workers for async image jobs
