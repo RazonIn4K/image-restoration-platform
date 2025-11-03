@@ -8,7 +8,21 @@ function initialize() {
   if (!raw) {
     throw new Error('Firestore credentials not configured.');
   }
-  const creds = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  
+  // Decode base64-encoded credentials from Doppler
+  let creds;
+  try {
+    const decoded = Buffer.from(raw, 'base64').toString('utf-8');
+    creds = JSON.parse(decoded);
+  } catch (error) {
+    // Fallback: try parsing as raw JSON for development
+    try {
+      creds = JSON.parse(raw);
+    } catch (fallbackError) {
+      throw new Error(`Failed to parse FIRESTORE_CREDS: ${error.message}`);
+    }
+  }
+  
   if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(creds),

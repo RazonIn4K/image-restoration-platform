@@ -62,9 +62,40 @@ export function createRedisStore({ url = DEFAULT_URL } = {}) {
   }
 
   const client = createRedisClient({ url });
+  const fallbackStore = createInMemoryStore();
+  let useFallbackStore = false;
+
   client.on('error', (err) => {
     console.error('[redis] Client error', err);
   });
+
+  // Atomic token bucket Lua script to prevent race conditions
+  const tokenBucketScript = `
+    local key = KEYS[1]
+    local limit = tonumber(ARGV[1])
+    local interval_ms = tonumber(ARGV[2])
+    local now = tonumber(ARGV[3])
+
+    local bucket = redis.call('HMGET', key, 'remaining', 'reset')
+    local remaining = tonumber(bucket[1])
+    local reset = tonumber(bucket[2])
+
+    if (remaining == nil) or (reset == nil) or (reset <= now) then
+      remaining = limit - 1
+      reset = now + interval_ms
+      redis.call('HMSET', key, 'remaining', remaining, 'reset', reset)
+      redis.call('PEXPIRE', key, interval_ms)
+      return {1, remaining, reset}
+    end
+
+    if remaining <= 0 then
+      return {0, 0, reset}
+    end
+
+    remaining = remaining - 1
+    redis.call('HSET', key, 'remaining', remaining)
+    return {1, remaining, reset}
+  `;
 
   const readyPromise = client
     .connect()
@@ -73,6 +104,7 @@ export function createRedisStore({ url = DEFAULT_URL } = {}) {
     })
     .catch((error) => {
       console.error('[redis] Failed to connect. Falling back to in-memory store.', error);
+      useFallbackStore = true;
     });
 
   const store = {
@@ -81,39 +113,45 @@ export function createRedisStore({ url = DEFAULT_URL } = {}) {
     },
 
     async take({ key, limit, intervalSeconds }) {
+      if (useFallbackStore) {
+        return fallbackStore.take({ key, limit, intervalSeconds });
+      }
+
       const now = Date.now();
       const windowKey = `bucket:${key}`;
-      const ttlSeconds = intervalSeconds;
+      const intervalMs = intervalSeconds * 1000;
 
-      const data = await client.hGetAll(windowKey);
-      let remaining = Number.parseInt(data.remaining ?? '', 10);
-      let expiresAt = Number.parseInt(data.expiresAt ?? '', 10);
-
-      if (!Number.isFinite(remaining) || !Number.isFinite(expiresAt) || expiresAt <= now) {
-        remaining = limit - 1;
-        expiresAt = now + ttlSeconds * 1000;
-        await client.hSet(windowKey, {
-          remaining: String(remaining),
-          expiresAt: String(expiresAt),
+      try {
+        // Execute atomic token bucket operation using Lua script
+        const result = await client.eval(tokenBucketScript, {
+          keys: [windowKey],
+          arguments: [String(limit), String(intervalMs), String(now)]
         });
-        await client.expire(windowKey, ttlSeconds);
-        return { allowed: true, remaining, reset: expiresAt };
-      }
 
-      if (remaining <= 0) {
-        return { allowed: false, remaining: 0, reset: expiresAt };
+        const [allowed, remaining, expiresAt] = result;
+        return {
+          allowed: Number(allowed) === 1,
+          remaining: Number(remaining),
+          reset: Number(expiresAt)
+        };
+      } catch (error) {
+        console.error('[redis] Token bucket operation failed. Switching to in-memory store.', error);
+        useFallbackStore = true;
+        return fallbackStore.take({ key, limit, intervalSeconds });
       }
-
-      remaining -= 1;
-      await client.hSet(windowKey, { remaining: String(remaining) });
-      return { allowed: true, remaining, reset: expiresAt };
     },
 
     async setIdempotency(key, value, ttlSeconds) {
+      if (useFallbackStore) {
+        return fallbackStore.setIdempotency(key, value, ttlSeconds);
+      }
       await client.set(`idem:${key}`, JSON.stringify(value), { EX: ttlSeconds });
     },
 
     async getIdempotency(key) {
+      if (useFallbackStore) {
+        return fallbackStore.getIdempotency(key);
+      }
       const raw = await client.get(`idem:${key}`);
       if (!raw) return null;
       try {

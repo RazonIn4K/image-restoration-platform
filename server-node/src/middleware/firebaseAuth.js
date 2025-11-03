@@ -16,7 +16,16 @@ function initializeFirebase() {
   }
 
   try {
-    const creds = typeof rawCreds === 'string' ? JSON.parse(rawCreds) : rawCreds;
+    // Decode base64-encoded credentials from Doppler
+    let creds;
+    try {
+      const decoded = Buffer.from(rawCreds, 'base64').toString('utf-8');
+      creds = JSON.parse(decoded);
+    } catch (error) {
+      // Fallback: try parsing as raw JSON for development
+      creds = JSON.parse(rawCreds);
+    }
+    
     if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(creds),

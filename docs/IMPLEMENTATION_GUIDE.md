@@ -31,12 +31,17 @@ npm run validate:secrets:doppler
 
 The Express backend validates the presence of these secrets on startup:
 
-- `GEMINI_API_KEY`
-- `FIRESTORE_CREDS`
-- `REDIS_URL`
-- `STRIPE_WEBHOOK_SECRET`
-- `NEXT_PUBLIC_API_URL`
-- `LOG_LEVEL`
+- `GEMINI_API_KEY` - Google AI API key for Gemini 2.5 Flash Image
+- `FIRESTORE_CREDS` - **Base64-encoded** Firebase service account JSON credentials
+- `REDIS_URL` - Redis connection URL (e.g., redis://localhost:6379)
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook endpoint secret
+- `NEXT_PUBLIC_API_URL` - Public API URL for CORS configuration
+- `LOG_LEVEL` - Logging level (info, debug, error)
+
+**Note:** `FIRESTORE_CREDS` must be base64-encoded. To encode your service account JSON:
+```bash
+cat service-account.json | base64
+```
 
 Running without the Doppler environment will terminate the process and print the missing keys. In CI, provide a Doppler service token via the `DOPPLER_TOKEN` environment variable and execute the same scripts.
 
