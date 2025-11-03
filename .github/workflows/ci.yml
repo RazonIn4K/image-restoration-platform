@@ -1,0 +1,31 @@
+name: CI
+on:
+  push: { branches: ["main"] }
+  pull_request: { branches: ["main"] }
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm ci
+      - run: node -e "console.log('Node scaffold OK')"
+
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - run: python - <<'PY'
+print('Python scaffold OK')
+PY
