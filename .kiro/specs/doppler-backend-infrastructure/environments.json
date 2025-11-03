@@ -1,0 +1,17 @@
+{
+  "project": "ai-restoration-similar",
+  "configs": {
+    "development": {
+      "name": "dev",
+      "description": "Local development configuration with mocked Firestore/Redis fallbacks"
+    },
+    "staging": {
+      "name": "staging",
+      "description": "Pre-production configuration mirroring production limits"
+    },
+    "production": {
+      "name": "production",
+      "description": "Live environment configuration, all integrations enabled"
+    }
+  }
+}
