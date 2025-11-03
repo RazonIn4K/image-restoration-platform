@@ -12,6 +12,7 @@ import { createProblem, errorHandler } from './utils/problem.js';
 import { attachClients } from './middleware/clients.js';
 import { getClients } from './context/clients.js';
 import { attachServices } from './context/services.js';
+import { handleUpload, validateUploadedImage } from './middleware/uploadValidation.js';
 
 assertRequiredSecrets();
 
@@ -45,7 +46,12 @@ apiRouter.use(firebaseAuth());
 const sharedClients = getClients();
 apiRouter.use(rateLimitMiddleware({ store: sharedClients.redis }));
 
-apiRouter.post('/jobs', idempotencyMiddleware({ store: sharedClients.redis }), (_req, _res, next) =>
+apiRouter.post(
+  '/jobs',
+  idempotencyMiddleware({ store: sharedClients.redis }),
+  handleUpload('image'),
+  validateUploadedImage,
+  (_req, _res, next) =>
   next(
     createProblem({
       type: 'https://docs.image-restoration.ai/problem/not-implemented',

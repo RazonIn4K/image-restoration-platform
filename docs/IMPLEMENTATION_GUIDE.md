@@ -48,3 +48,15 @@ Running without the Doppler environment will terminate the process and print the
 ### Environment Validation Script
 
 `npm run validate:secrets` executes `server-node/scripts/validate-secrets.js`, which asserts the required secrets exist and recommends using `doppler run --` when they are missing. The Express entrypoint (`src/server.js`) invokes the same check during startup.
+
+## File Upload Validation
+
+Image uploads are accepted only when they meet the following requirements:
+
+- **Field name**: `image`
+- **Maximum size**: 10 MB (requests above the limit return `413 Content Too Large` + `Retry-After` header)
+- **Allowed formats**: JPEG, PNG, WebP (validated via file magic using `file-type`)
+- **Allowed extensions**: `.jpg`, `.jpeg`, `.png`, `.webp`
+- **Protection**: Compound extensions (for example `photo.jpg.php`) and unsupported media types return RFC 7807 problem responses
+
+The middleware lives in `src/middleware/uploadValidation.js` and is wired into `POST /v1/jobs` ahead of downstream processing.
