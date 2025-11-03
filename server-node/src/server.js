@@ -11,6 +11,7 @@ import { notFoundHandler } from './middleware/notFound.js';
 import { createProblem, errorHandler } from './utils/problem.js';
 import { attachClients } from './middleware/clients.js';
 import { getClients } from './context/clients.js';
+import { attachServices } from './context/services.js';
 
 assertRequiredSecrets();
 
@@ -20,6 +21,7 @@ app.set('trust proxy', 1);
 
 app.use(requestContext());
 app.use(attachClients());
+app.use(attachServices());
 for (const middleware of securityHeaders()) {
   app.use(middleware);
 }
