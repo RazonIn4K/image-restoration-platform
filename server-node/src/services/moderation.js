@@ -118,10 +118,8 @@ export class ModerationService {
         error: error.message
       });
 
-      // Fail-safe: allow content if moderation service fails
-      // In production, you might want to be more conservative
       return {
-        allowed: true,
+        allowed: false,
         flags: {
           adult: 'UNKNOWN',
           violence: 'UNKNOWN',
@@ -129,11 +127,15 @@ export class ModerationService {
           spoof: 'UNKNOWN',
           medical: 'UNKNOWN'
         },
+        rejection: {
+          reason: 'Moderation service unavailable. Content rejected as a precaution.',
+          categories: ['moderation-service-error'],
+        },
         error: {
           message: error.message,
           code: 'MODERATION_SERVICE_ERROR'
         },
-        confidence: 0,
+        confidence: 1,
         timestamp: new Date().toISOString()
       };
 

@@ -12,7 +12,7 @@ import { createModerationService } from '../services/moderation.js';
 
 let memoizedServices;
 
-function createVisionClient() {
+function createVisionClient({ logger }) {
   try {
     const rawCreds = process.env.FIRESTORE_CREDS;
     if (!rawCreds) {
@@ -26,6 +26,7 @@ function createVisionClient() {
       creds = JSON.parse(decoded);
     } catch (error) {
       // Fallback: try parsing as raw JSON for development
+      logger?.warn('[services] FIRESTORE_CREDS is not base64 encoded; falling back to raw JSON parsing. This should not happen in production.');
       creds = JSON.parse(rawCreds);
     }
 
@@ -40,31 +41,32 @@ function createVisionClient() {
 
 export function getServices(clients) {
   if (!memoizedServices) {
-    const visionClient = createVisionClient();
+    const logger = clients.logger ?? console;
+    const visionClient = createVisionClient({ logger });
     
     memoizedServices = {
       classifier: createClassifierService({
-        logger: console
+        logger
       }),
       
       promptEnhancer: createPromptEnhancerService({
-        logger: console
+        logger
       }),
       
       restorator: createRestoratorService({
         geminiClient: clients.gemini,
-        logger: console
+        logger
       }),
       
       credits: createCreditsService({
         redisClient: clients.redis,
         firestoreClient: clients.firestore,
-        logger: console
+        logger
       }),
       
       moderation: createModerationService({
         visionClient,
-        logger: console
+        logger
       })
     };
   }

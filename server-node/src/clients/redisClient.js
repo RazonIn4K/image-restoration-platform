@@ -6,6 +6,19 @@ const storeCache = new Map();
 function createInMemoryStore() {
   const buckets = new Map();
   const idempotency = new Map();
+  const kv = new Map();
+
+  const guardExpiration = (map, key) => {
+    const entry = map.get(key);
+    if (!entry) {
+      return null;
+    }
+    if (entry.expiresAt && entry.expiresAt <= Date.now()) {
+      map.delete(key);
+      return null;
+    }
+    return entry;
+  };
 
   return {
     async take({ key, limit, intervalSeconds }) {
@@ -30,20 +43,77 @@ function createInMemoryStore() {
     },
 
     async getIdempotency(key) {
-      const entry = idempotency.get(key);
-      if (!entry || entry.expiresAt <= Date.now()) {
-        idempotency.delete(key);
-        return null;
-      }
-      return entry;
+      const entry = guardExpiration(idempotency, key);
+      return entry ?? null;
     },
 
-    async set(key, value, ttlSeconds) {
-      return this.setIdempotency(key, value, ttlSeconds);
+    async eval(script, { keys = [], arguments: args = [] } = {}) {
+      if (script.includes('free_usage')) {
+        const key = keys[0];
+        const limit = Number(args[0] ?? 0);
+        const current = Number(await this.get(key) ?? 0);
+        if (current >= limit) {
+          return 0;
+        }
+        const newValue = await this.incr(key);
+        await this.expire(key, 86400);
+        return newValue;
+      }
+      if (script.includes('remaining') && script.includes('reset')) {
+        // Token bucket handling for fallback mode
+        const key = keys[0];
+        const limit = Number(args[0] ?? 0);
+        const intervalMs = Number(args[1] ?? 0);
+        const now = Number(args[2] ?? Date.now());
+        const bucket = buckets.get(key);
+        if (!bucket || bucket.expiresAt <= now) {
+          const remaining = limit - 1;
+          const reset = now + intervalMs;
+          buckets.set(key, { remaining, expiresAt: reset });
+          return [1, remaining, reset];
+        }
+        if (bucket.remaining <= 0) {
+          return [0, 0, bucket.expiresAt];
+        }
+        bucket.remaining -= 1;
+        return [1, bucket.remaining, bucket.expiresAt];
+      }
+      throw new Error('In-memory eval does not support this script.');
     },
 
     async get(key) {
-      return this.getIdempotency(key);
+      const entry = guardExpiration(kv, key);
+      return entry ? entry.value : null;
+    },
+
+    async set(key, value, options = {}) {
+      const expiresAt = options?.EX ? Date.now() + options.EX * 1000 : null;
+      kv.set(key, { value: value != null ? String(value) : null, expiresAt });
+      return 'OK';
+    },
+
+    async expire(key, seconds) {
+      const entry = kv.get(key);
+      if (!entry) {
+        return 0;
+      }
+      entry.expiresAt = Date.now() + seconds * 1000;
+      return 1;
+    },
+
+    async incrBy(key, amount) {
+      const current = Number(await this.get(key) ?? 0);
+      const updated = current + amount;
+      await this.set(key, updated);
+      return updated;
+    },
+
+    async incr(key) {
+      return this.incrBy(key, 1);
+    },
+
+    async decr(key) {
+      return this.incrBy(key, -1);
     },
   };
 }
@@ -162,12 +232,56 @@ export function createRedisStore({ url = DEFAULT_URL } = {}) {
       }
     },
 
-    async set(key, value, ttlSeconds) {
-      return this.setIdempotency(key, value, ttlSeconds);
+    async eval(script, options) {
+      if (useFallbackStore) {
+        return fallbackStore.eval(script, options);
+      }
+      return client.eval(script, options);
     },
 
     async get(key) {
-      return this.getIdempotency(key);
+      if (useFallbackStore) {
+        return fallbackStore.get(key);
+      }
+      return client.get(key);
+    },
+
+    async set(key, value, options = {}) {
+      if (useFallbackStore) {
+        return fallbackStore.set(key, value, options);
+      }
+      if (options?.EX) {
+        return client.set(key, value, { EX: options.EX });
+      }
+      return client.set(key, value);
+    },
+
+    async expire(key, seconds) {
+      if (useFallbackStore) {
+        return fallbackStore.expire(key, seconds);
+      }
+      return client.expire(key, seconds);
+    },
+
+    async incr(key) {
+      if (useFallbackStore) {
+        return fallbackStore.incr(key);
+      }
+      return client.incr(key);
+    },
+
+    async incrBy(key, amount) {
+      if (useFallbackStore) {
+        return fallbackStore.incrBy(key, amount);
+      }
+      return client.incrBy(key, amount);
+    },
+
+    async decr(key) {
+      if (useFallbackStore) {
+        return fallbackStore.decr(key);
+      }
+      return client.decr(key);
     },
   };
 

@@ -1,3 +1,4 @@
+import path from 'path';
 import multer from 'multer';
 import { fileTypeFromBuffer } from 'file-type';
 import { createProblem } from '../utils/problem.js';
@@ -9,9 +10,7 @@ const RETRY_AFTER_SECONDS = 60;
 
 function getFileExtension(filename) {
   if (!filename) return '';
-  const lower = filename.toLowerCase();
-  const index = lower.lastIndexOf('.');
-  return index >= 0 ? lower.substring(index) : '';
+  return path.extname(filename.toLowerCase());
 }
 
 const storage = multer.memoryStorage();
@@ -87,17 +86,6 @@ export function handleUpload(fieldName = 'image') {
 
 export async function validateUploadedImage(req, _res, next) {
   try {
-    if (!req.file?.buffer) {
-      return next(
-        createProblem({
-          type: 'https://docs.image-restoration.ai/problem/image-missing',
-          title: 'Image File Required',
-          status: 400,
-          detail: 'An image file must be provided in the request.',
-        })
-      );
-    }
-
     const detected = await fileTypeFromBuffer(req.file.buffer);
     if (!detected || !ACCEPTED_MIME_TYPES.has(detected.mime)) {
       return next(

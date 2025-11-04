@@ -24,6 +24,9 @@ const DEGRADATION_TYPES = {
   colorShift: 'White balance and color cast issues'
 };
 
+let blockinessWarningLogged = false;
+let scratchWarningLogged = false;
+
 export class ClassifierService {
   constructor({ logger } = {}) {
     this.logger = logger ?? console;
@@ -283,15 +286,54 @@ export class ClassifierService {
   }
 
   async _detectBlockiness(imageBuffer) {
-    // Simplified blockiness detection - look for 8x8 grid patterns
-    // In a real implementation, this would use DCT analysis
-    return 0.2; // Placeholder
+    if (!blockinessWarningLogged) {
+      this.logger.warn('[classifier] Blockiness detection is using a simplified heuristic. Enhance with DCT-based analysis for production accuracy.');
+      blockinessWarningLogged = true;
+    }
+
+    // Very lightweight heuristic: compare variance before/after slight blur
+    try {
+      const original = await sharp(imageBuffer).raw().toBuffer({ resolveWithObject: true });
+      const blurred = await sharp(imageBuffer).blur(1).raw().toBuffer({ resolveWithObject: true });
+
+      const originalVariance = this._calculateVariance(original.data);
+      const blurredVariance = this._calculateVariance(blurred.data);
+      const varianceDelta = Math.max(0, originalVariance - blurredVariance);
+
+      return Math.min(varianceDelta / 500, 1.0);
+    } catch (error) {
+      this.logger.debug('[classifier] Blockiness heuristic failed; returning fallback confidence', { error: error.message });
+      return 0.2;
+    }
   }
 
   _detectLinearFeatures(edgeBuffer, width, height) {
-    // Simplified linear feature detection for scratches
-    // In a real implementation, this would use Hough transform or similar
-    return 0.1; // Placeholder
+    if (!scratchWarningLogged) {
+      this.logger.warn('[classifier] Scratch detection is using a simplified heuristic. Integrate Hough transforms for better accuracy.');
+      scratchWarningLogged = true;
+    }
+
+    let verticalCount = 0;
+    let horizontalCount = 0;
+    const threshold = 200;
+
+    for (let y = 0; y < height; y += 4) {
+      for (let x = 0; x < width; x += 4) {
+        const idx = y * width + x;
+        const value = edgeBuffer[idx];
+        if (value > threshold) {
+          if (x + 1 < width) {
+            verticalCount += edgeBuffer[idx + 1] > threshold ? 1 : 0;
+          }
+          if (y + 1 < height) {
+            horizontalCount += edgeBuffer[idx + width] > threshold ? 1 : 0;
+          }
+        }
+      }
+    }
+
+    const total = verticalCount + horizontalCount;
+    return Math.min(total / 1000, 1.0);
   }
 
   /**

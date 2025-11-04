@@ -1,4 +1,5 @@
 import { trace, context, SpanStatusCode } from '@opentelemetry/api';
+import pLimit from 'p-limit';
 import { createClassifierService } from './classifier.js';
 import { createPromptEnhancerService } from './promptEnhancer.js';
 
@@ -8,6 +9,9 @@ import { createPromptEnhancerService } from './promptEnhancer.js';
  * Workflow: Image → Classification → Prompt Enhancement → AI Restoration → Result
  * Includes retry logic, cost tracking, and comprehensive error handling
  */
+
+const BATCH_REQUEST_DELAY_MS = Number(process.env.RESTORATION_BATCH_DELAY_MS ?? 0);
+const BATCH_CONCURRENCY = Math.max(1, Number(process.env.RESTORATION_BATCH_CONCURRENCY ?? 3));
 
 export class RestoratorService {
   constructor({ geminiClient, logger } = {}) {
@@ -189,22 +193,24 @@ export class RestoratorService {
         batchSize: images.length
       });
 
-      // Process images sequentially to avoid overwhelming the AI service
-      const results = [];
-      for (let i = 0; i < images.length; i++) {
-        const imageResult = await this.restore({
-          imageBuffer: images[i],
-          userPrompt,
-          userContext,
-          options: { ...options, batchIndex: i, batchSize: images.length }
-        });
-        results.push(imageResult);
+      const limiter = pLimit(BATCH_CONCURRENCY);
 
-        // Add delay between requests to respect rate limits
-        if (i < images.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
+      const tasks = images.map((imageBuffer, index) =>
+        limiter(async () => {
+          if (BATCH_REQUEST_DELAY_MS > 0 && index > 0) {
+            await new Promise((resolve) => setTimeout(resolve, BATCH_REQUEST_DELAY_MS));
+          }
+
+          return this.restore({
+            imageBuffer,
+            userPrompt,
+            userContext,
+            options: { ...options, batchIndex: index, batchSize: images.length }
+          });
+        })
+      );
+
+      const results = await Promise.all(tasks);
 
       span.setAttributes({
         'restoration.batch_success_count': results.filter(r => r.success).length,

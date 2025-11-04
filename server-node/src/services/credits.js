@@ -413,7 +413,7 @@ export class CreditsService {
     
     try {
       // Atomic increment
-      const newBalance = await this.redis.incr(cacheKey);
+      const newBalance = await this.redis.incrBy(cacheKey, amount);
       await this.redis.expire(cacheKey, CACHE_TTL_SECONDS);
 
       // Async sync to Firestore
