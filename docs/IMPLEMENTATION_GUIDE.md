@@ -76,3 +76,21 @@ The `moderateImage` middleware invokes the `ModerationService` (Google Vision Sa
 - Requests are rejected with HTTP 422 `application/problem+json` responses whenever SafeSearch reports LIKELY/VERY_LIKELY adult, racy, or violent content
 - Moderation audits are persisted to Firestore (`moderation_logs`) with available user/job context
 - Moderation failures now default to **fail closed**—service outages reject content instead of passing it through
+
+## Job Queue & Worker
+
+BullMQ powers asynchronous restoration jobs. Configuration lives in `src/queues/jobQueue.js` and provides:
+
+- Redis connection sourced from `REDIS_URL`
+- Jittered exponential backoff (±30%) with a configurable base delay (`JOBS_BACKOFF_BASE_MS`)
+- Default job attempts (`JOBS_MAX_ATTEMPTS`, default 5)
+- Retention policies (`JOBS_REMOVE_ON_COMPLETE` = 100, `JOBS_REMOVE_ON_FAIL` = 500)
+- Helper exports `getJobQueue()` and `closeJobQueue()` to reuse a singleton queue/connection across workers and API routes
+
+`src/queues/workers/restorationWorker.js` implements the BullMQ worker:
+
+- Propagates W3C trace context (`traceparent`, `tracestate`) into worker spans
+- Invokes the Restorator service to run the full Classifier → PromptEnhancer → Restorator pipeline
+- Updates Firestore job status (`running`, `succeeded`, `failed`) and records timing metadata
+- Issues credit refunds via `CreditsService` when jobs ultimately fail (using the job payload `creditsSpent`)
+- Supports graceful shutdown on SIGINT/SIGTERM and can be executed locally with `npm run worker:restoration`

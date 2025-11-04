@@ -148,7 +148,7 @@
     - Configure job retention (100 completed, 500 failed)
     - _Requirements: 8.1.1, 8.1.2_
   
-  - [ ] 6.2 Create queue worker with trace context propagation
+  - [x] 6.2 Create queue worker with trace context propagation
     - Extract W3C traceparent/tracestate from job data
     - Create child span with propagated context
     - Process job through Classifier → Enhancer → Restorator pipeline
