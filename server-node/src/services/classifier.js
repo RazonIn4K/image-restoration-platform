@@ -245,9 +245,9 @@ export class ClassifierService {
       const [r, g, b] = stats.channels.slice(0, 3);
       const avgMean = (r.mean + g.mean + b.mean) / 3;
       
-      const rDeviation = Math.abs(r.mean - avgMean) / avgMean;
-      const gDeviation = Math.abs(g.mean - avgMean) / avgMean;
-      const bDeviation = Math.abs(b.mean - avgMean) / avgMean;
+      const rDeviation = avgMean > 0 ? Math.abs(r.mean - avgMean) / avgMean : 0;
+      const gDeviation = avgMean > 0 ? Math.abs(g.mean - avgMean) / avgMean : 0;
+      const bDeviation = avgMean > 0 ? Math.abs(b.mean - avgMean) / avgMean : 0;
       
       const maxDeviation = Math.max(rDeviation, gDeviation, bDeviation);
       return Math.min(maxDeviation * 2, 1.0);
