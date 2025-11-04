@@ -186,7 +186,7 @@
     - Return job details with signed result URL when succeeded
     - _Requirements: 3.8, 8.2.5, 8.2.6_
   
-  - [ ] 7.4 Implement GET /v1/jobs/{id}/stream (SSE)
+  - [x] 7.4 Implement GET /v1/jobs/{id}/stream (SSE)
     - Validate Firebase Auth token and job ownership
     - Stream job status updates as Server-Sent Events
     - Send status events (queued, running, succeeded, failed)

@@ -12,6 +12,7 @@ import { getJobQueue } from '../queues/jobQueue.js';
 
 const ACCEPTED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const DEFAULT_CREDIT_COST = Number(process.env.JOBS_SINGLE_RESTORE_CREDIT ?? 1);
+const SSE_HEARTBEAT_INTERVAL_MS = Number(process.env.JOBS_SSE_HEARTBEAT_MS ?? 30000);
 
 function buildTraceparentFromSpan(span) {
   const spanContext = span.spanContext();
@@ -33,6 +34,36 @@ function normalizeContentType(value) {
     });
   }
   return normalized;
+}
+
+async function buildJobResponse({ jobId, data, req }) {
+  const response = {
+    jobId,
+    status: data.status ?? 'unknown',
+    createdAt: data.createdAt?.toDate?.().toISOString?.() ?? null,
+    updatedAt: data.updatedAt?.toDate?.().toISOString?.() ?? null,
+    timings: data.timings ?? null,
+    prompt: data.prompt ?? null,
+    credit: data.credit ?? null,
+    moderation: data.moderation ?? null,
+    preprocessing: data.preprocessing ?? null,
+    error: data.error ?? null,
+  };
+
+  if (response.status === 'succeeded' && data.resultObjectName) {
+    const download = await req.clients.gcs.generateDownloadUrl({
+      userId: req.user.id,
+      objectName: data.resultObjectName,
+      filename: `${jobId}.jpg`,
+    });
+    response.result = {
+      downloadUrl: download.url,
+      expiresAt: download.expiresAt,
+      objectName: data.resultObjectName,
+    };
+  }
+
+  return response;
 }
 
 export function createJobsRouter({ redisStore }) {
@@ -261,33 +292,87 @@ export function createJobsRouter({ redisStore }) {
         });
       }
 
-      const response = {
-        jobId,
-        status: data.status ?? 'unknown',
-        createdAt: data.createdAt?.toDate?.().toISOString?.() ?? null,
-        updatedAt: data.updatedAt?.toDate?.().toISOString?.() ?? null,
-        timings: data.timings ?? null,
-        prompt: data.prompt ?? null,
-        credit: data.credit ?? null,
-        moderation: data.moderation ?? null,
-        preprocessing: data.preprocessing ?? null,
-        error: data.error ?? null,
-      };
+      const response = await buildJobResponse({ jobId, data, req });
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  });
 
-      if (response.status === 'succeeded' && data.resultObjectName) {
-        const download = await req.clients.gcs.generateDownloadUrl({
-          userId: req.user.id,
-          objectName: data.resultObjectName,
-          filename: `${jobId}.jpg`,
+  router.get('/jobs/:id/stream', async (req, res, next) => {
+    const jobId = req.params.id;
+
+    try {
+      const docRef = req.clients.firestore.collection('restorations').doc(jobId);
+      const snapshot = await docRef.get();
+
+      if (!snapshot.exists) {
+        throw createProblem({
+          type: 'https://docs.image-restoration.ai/problem/job-not-found',
+          title: 'Job Not Found',
+          status: 404,
+          detail: 'No job with the provided identifier exists.',
         });
-        response.result = {
-          downloadUrl: download.url,
-          expiresAt: download.expiresAt,
-          objectName: data.resultObjectName,
-        };
       }
 
-      res.json(response);
+      const data = snapshot.data();
+      if (data.userId && data.userId !== req.user.id) {
+        throw createProblem({
+          type: 'https://docs.image-restoration.ai/problem/job-not-found',
+          title: 'Job Not Found',
+          status: 404,
+          detail: 'No job with the provided identifier exists.',
+        });
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+
+      res.write(': connected\n\n');
+
+      const sendUpdate = async (docSnapshot) => {
+        if (!docSnapshot.exists) {
+          res.write('event: status\n');
+          res.write(`data: ${JSON.stringify({ jobId, status: 'not_found' })}\n\n`);
+          return;
+        }
+
+        const payload = await buildJobResponse({ jobId, data: docSnapshot.data(), req });
+        res.write('event: status\n');
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      };
+
+      await sendUpdate(snapshot);
+
+      const unsubscribe = docRef.onSnapshot(
+        (docSnapshot) => {
+          sendUpdate(docSnapshot).catch((error) => {
+            req.clients.logger?.error('[jobs] SSE send failed', { jobId, error: error?.message });
+          });
+        },
+        (error) => {
+          res.write('event: error\n');
+          res.write(`data: ${JSON.stringify({ message: error.message })}\n\n`);
+          res.end();
+        }
+      );
+
+      const heartbeat = setInterval(() => {
+        res.write(': heartbeat\n\n');
+      }, SSE_HEARTBEAT_INTERVAL_MS);
+
+      const cleanup = () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+        res.end();
+      };
+
+      req.on('close', cleanup);
+      req.on('end', cleanup);
     } catch (error) {
       next(error);
     }

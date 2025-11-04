@@ -129,3 +129,11 @@ BullMQ powers asynchronous restoration jobs. Configuration lives in `src/queues/
 - Requires authentication and verifies job ownership
 - Returns job status (`queued`, `running`, `succeeded`, `failed`) plus timing, moderation, preprocessing, and credit metadata
 - When `status === "succeeded"`, responds with a signed download URL for the restored image
+
+### `GET /v1/jobs/{id}/stream`
+
+- Server-Sent Events (SSE) endpoint for real-time job updates
+- Emits `event: status` messages whenever the job document changes in Firestore
+- Includes the same payload as `GET /v1/jobs/{id}`
+- Sends heartbeat comments every 30 seconds (`JOBS_SSE_HEARTBEAT_MS` configurable)
+- Falls back gracefully to the polling endpoint if SSE is unavailable on the client
