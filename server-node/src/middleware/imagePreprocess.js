@@ -21,6 +21,50 @@ function calculateResizeDimensions(width, height) {
   };
 }
 
+export async function preprocessBuffer(buffer) {
+  const operations = [];
+
+  const sourceMetadata = await sharp(buffer, { failOnError: false }).metadata();
+
+  let pipeline = sharp(buffer, { failOnError: false }).rotate();
+  operations.push('auto_orient');
+
+  const { width, height } = sourceMetadata;
+  if (needsResize(width, height)) {
+    const dimensions = calculateResizeDimensions(width, height);
+    pipeline = pipeline.resize({
+      width: dimensions.width,
+      height: dimensions.height,
+      fit: 'inside',
+      withoutEnlargement: true,
+    });
+    operations.push(`resize_${dimensions.width}x${dimensions.height}`);
+  }
+
+  pipeline = pipeline
+    .jpeg({
+      quality: JPEG_QUALITY,
+      chromaSubsampling: '4:4:4',
+      mozjpeg: true,
+    })
+    .withMetadata({ icc: 'sRGB' });
+  operations.push(`compress_jpeg_q${JPEG_QUALITY}`);
+  operations.push('attach_sRGB_icc');
+
+  const processedBuffer = await pipeline.toBuffer();
+  const processedMetadata = await sharp(processedBuffer).metadata();
+
+  return {
+    buffer: processedBuffer,
+    processedMetadata,
+    originalMetadata: sourceMetadata,
+    operations,
+    size: processedBuffer.length,
+    mime: 'image/jpeg',
+    extension: 'jpg',
+  };
+}
+
 export async function preprocessImage(req, _res, next) {
   if (!req.file?.buffer) {
     return next(
@@ -34,48 +78,17 @@ export async function preprocessImage(req, _res, next) {
   }
 
   try {
-    const operations = [];
+    const result = await preprocessBuffer(req.file.buffer);
 
-    const sourceBuffer = req.file.buffer;
-    const sourceMetadata = await sharp(sourceBuffer, { failOnError: false }).metadata();
-
-    let pipeline = sharp(sourceBuffer, { failOnError: false }).rotate();
-    operations.push('auto_orient');
-
-    const { width, height } = sourceMetadata;
-    if (needsResize(width, height)) {
-      const dimensions = calculateResizeDimensions(width, height);
-      pipeline = pipeline.resize({
-        width: dimensions.width,
-        height: dimensions.height,
-        fit: 'inside',
-        withoutEnlargement: true,
-      });
-      operations.push(`resize_${dimensions.width}x${dimensions.height}`);
-    }
-
-    pipeline = pipeline
-      .jpeg({
-        quality: JPEG_QUALITY,
-        chromaSubsampling: '4:4:4',
-        mozjpeg: true,
-      })
-      .withMetadata({ icc: 'sRGB' });
-    operations.push(`compress_jpeg_q${JPEG_QUALITY}`);
-    operations.push('attach_sRGB_icc');
-
-    const processedBuffer = await pipeline.toBuffer();
-    const processedMetadata = await sharp(processedBuffer).metadata();
-
-    req.file.originalBuffer = sourceBuffer;
-    req.file.originalMetadata = sourceMetadata;
-    req.file.buffer = processedBuffer;
-    req.file.processedMetadata = processedMetadata;
-    req.file.mimetype = 'image/jpeg';
-    req.file.detectedMime = 'image/jpeg';
-    req.file.detectedExt = 'jpg';
-    req.file.size = processedBuffer.length;
-    req.file.preprocessOperations = operations;
+    req.file.originalBuffer = req.file.buffer;
+    req.file.originalMetadata = result.originalMetadata;
+    req.file.buffer = result.buffer;
+    req.file.processedMetadata = result.processedMetadata;
+    req.file.mimetype = result.mime;
+    req.file.detectedMime = result.mime;
+    req.file.detectedExt = result.extension;
+    req.file.size = result.size;
+    req.file.preprocessOperations = result.operations;
 
     return next();
   } catch (error) {

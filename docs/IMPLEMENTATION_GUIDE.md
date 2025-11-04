@@ -76,7 +76,8 @@ The `moderateImage` middleware invokes the `ModerationService` (Google Vision Sa
 - Requests are rejected with HTTP 422 `application/problem+json` responses whenever SafeSearch reports LIKELY/VERY_LIKELY adult, racy, or violent content
 - Moderation audits are persisted to Firestore (`moderation_logs`) with available user/job context
 - Moderation failures now default to **fail closed**—service outages reject content instead of passing it through
-- ### Job Queue
+
+## Job Queue & Worker
 
 BullMQ powers asynchronous restoration jobs. Configuration lives in `src/queues/jobQueue.js` and provides:
 
@@ -84,4 +85,47 @@ BullMQ powers asynchronous restoration jobs. Configuration lives in `src/queues/
 - Jittered exponential backoff (±30%) with a configurable base delay (`JOBS_BACKOFF_BASE_MS`)
 - Default job attempts (`JOBS_MAX_ATTEMPTS`, default 5)
 - Retention policies (`JOBS_REMOVE_ON_COMPLETE` = 100, `JOBS_REMOVE_ON_FAIL` = 500)
-- Helper exports `getJobQueue()` and `closeJobQueue()` to reuse the singleton queue/connection across workers and API routes.
+- Helper exports `getJobQueue()` and `closeJobQueue()` to reuse a singleton queue/connection across workers and API routes
+
+`src/queues/workers/restorationWorker.js` implements the BullMQ worker:
+
+- Propagates W3C trace context (`traceparent`, `tracestate`) into worker spans
+- Invokes the Restorator service to run the full Classifier → PromptEnhancer → Restorator pipeline
+- Updates Firestore job status (`running`, `succeeded`, `failed`) and records timing metadata
+- Issues credit refunds via `CreditsService` when jobs ultimately fail (using the job payload `creditsSpent`)
+- Supports graceful shutdown on SIGINT/SIGTERM and can be executed locally with `npm run worker:restoration`
+
+## REST API Endpoints
+
+### `GET /v1/uploads/signed-url`
+
+- Requires authentication (Firebase token)
+- Returns a V4 signed URL for direct browser → GCS uploads
+- Accepts optional `contentType` query param (`image/jpeg` default); rejects unsupported types
+- Response shape:
+
+```json
+{
+  "uploadUrl": "https://storage.googleapis.com/...",
+  "objectName": "originals/<userId>/<uuid>",
+  "expiresAt": "2025-01-01T00:00:00.000Z",
+  "contentType": "image/jpeg"
+}
+```
+
+### `POST /v1/jobs`
+
+- Idempotent (`Idempotency-Key` header required)
+- Supports two input modes:
+  1. `multipart/form-data` with `image` field (runs validation → preprocessing → moderation inline)
+  2. JSON payload referencing a previously uploaded object via signed URL
+- Deducts credits atomically before enqueueing the job; failures trigger automatic refunds
+- Enqueues the job on BullMQ with propagated trace context
+- Creates/updates Firestore `restorations/{jobId}` document
+- Responds `202 Accepted` with `Location: /v1/jobs/{jobId}`
+
+### `GET /v1/jobs/{id}`
+
+- Requires authentication and verifies job ownership
+- Returns job status (`queued`, `running`, `succeeded`, `failed`) plus timing, moderation, preprocessing, and credit metadata
+- When `status === "succeeded"`, responds with a signed download URL for the restored image

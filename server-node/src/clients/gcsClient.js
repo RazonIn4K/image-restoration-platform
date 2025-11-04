@@ -85,6 +85,42 @@ export class GcsClient {
       expiresAt: new Date(expires).toISOString(),
     };
   }
+
+  async downloadObject({ userId, objectName }) {
+    const { bucket } = this.bucketInfo;
+    const file = bucket.file(objectName);
+
+    const [metadata] = await file.getMetadata();
+    const fileOwner = metadata?.metadata?.userId;
+    if (fileOwner && userId && fileOwner !== userId) {
+      throw new Error('Access denied for requested object.');
+    }
+
+    const [buffer] = await file.download();
+    return {
+      buffer,
+      metadata,
+    };
+  }
+
+  async saveRestoredImage({ userId, jobId, buffer, contentType = 'image/jpeg' }) {
+    const { bucket } = this.bucketInfo;
+    const objectName = `restored/${userId}/${jobId}.jpg`;
+
+    const file = bucket.file(objectName);
+    await file.save(buffer, {
+      contentType,
+      metadata: {
+        userId,
+        jobId,
+      },
+      resumable: false,
+    });
+
+    await file.setMetadata({ cacheControl: 'private, max-age=31536000' });
+
+    return { objectName };
+  }
 }
 
 export function createGcsClient(options) {

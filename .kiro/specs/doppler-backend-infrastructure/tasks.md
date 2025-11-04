@@ -163,14 +163,14 @@
     - _Requirements: 8.1.3, 8.1.4, 8.1.5_
 
 - [ ] 7. Implement API endpoints
-  - [ ] 7.1 Implement GET /v1/uploads/signed-url
+  - [x] 7.1 Implement GET /v1/uploads/signed-url
     - Validate Firebase Auth token
     - Generate V4 signed URL for GCS upload (15min TTL)
     - Return URL, object path, and expiration timestamp
     - Include user ID in GCS object metadata
     - _Requirements: 3.1, 8.5.1, 8.5.4_
   
-  - [ ] 7.2 Implement POST /v1/jobs
+  - [x] 7.2 Implement POST /v1/jobs
     - Validate Idempotency-Key header
     - Check user credits via Credits Service
     - Enqueue job with trace context (traceparent/tracestate)
@@ -178,7 +178,7 @@
     - Return 202 Accepted with Location header
     - _Requirements: 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
   
-  - [ ] 7.3 Implement GET /v1/jobs/{id}
+  - [x] 7.3 Implement GET /v1/jobs/{id}
     - Validate Firebase Auth token
     - Verify job ownership (user ID match)
     - Return 403 Forbidden for unauthorized access
