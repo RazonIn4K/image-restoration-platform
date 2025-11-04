@@ -94,3 +94,102 @@ BullMQ powers asynchronous restoration jobs. Configuration lives in `src/queues/
 - Updates Firestore job status (`running`, `succeeded`, `failed`) and records timing metadata
 - Issues credit refunds via `CreditsService` when jobs ultimately fail (using the job payload `creditsSpent`)
 - Supports graceful shutdown on SIGINT/SIGTERM and can be executed locally with `npm run worker:restoration`
+
+## Job Queue & Dead Letter Queue
+
+The system uses BullMQ for async job processing with comprehensive failure handling.
+
+### Queue Architecture
+
+```
+API Request → Main Queue → Worker → Success
+                ↓
+            Failed Job → DLQ → Manual Replay
+```
+
+### Queue Commands
+
+```bash
+# Start restoration worker
+npm run worker:restoration
+
+# With Doppler
+doppler run -- npm run worker:restoration
+
+# DLQ management
+npm run jobs:replay -- list                    # List failed jobs
+npm run jobs:replay -- stats                   # Show DLQ statistics
+npm run jobs:replay -- replay <dlqJobId>       # Replay specific job
+npm run jobs:replay -- replay-user <userId>    # Replay user's jobs
+npm run jobs:replay -- cleanup                 # Clean old DLQ jobs
+
+# With Doppler
+doppler run -- npm run jobs:replay -- <command>
+```
+
+### Job Lifecycle
+
+1. **Queued**: Job added to main restoration queue
+2. **Active**: Worker picks up job and begins processing
+3. **Completed**: Job finishes successfully
+4. **Failed**: Job fails and retries (up to 5 attempts)
+5. **Dead Letter**: Job exhausts retries and moves to DLQ
+6. **Replayed**: Job manually replayed from DLQ
+
+### Failure Handling
+
+- **Automatic Retries**: 5 attempts with exponential backoff
+- **Credit Refunds**: Automatic refund on job failure
+- **DLQ Migration**: Failed jobs automatically moved to dead letter queue
+- **Audit Trail**: All failures logged in Firestore with error details
+- **Manual Recovery**: CLI tools for replaying failed jobs
+
+### Monitoring
+
+The system provides comprehensive queue monitoring:
+
+- **Queue Stats**: Active, waiting, completed, failed job counts
+- **DLQ Stats**: Dead letter queue depth and failure patterns
+- **Job Tracking**: Individual job status and error details
+- **Replay History**: Audit log of all replay attempts
+
+### Production Operations
+
+**Daily Maintenance:**
+```bash
+# Check queue health
+doppler run -- npm run jobs:replay -- stats
+
+# Clean up old jobs (automated, but can run manually)
+doppler run -- npm run jobs:replay -- cleanup
+```
+
+**Incident Response:**
+```bash
+# List recent failures
+doppler run -- npm run jobs:replay -- list 20
+
+# Replay specific failed job
+doppler run -- npm run jobs:replay -- replay dlq-<jobId>
+
+# Bulk replay for affected user
+doppler run -- npm run jobs:replay -- replay-user <userId>
+```
+
+### Configuration
+
+Queue behavior is controlled by environment variables:
+
+- `RESTORATION_BATCH_DELAY_MS` - Delay between batch job processing (default: 1000ms)
+- `REDIS_URL` - Redis connection for queue storage
+- `LOG_LEVEL` - Logging verbosity for queue operations
+
+### Error Recovery
+
+The DLQ system ensures no jobs are permanently lost:
+
+1. **Automatic Migration**: Failed jobs move to DLQ after max retries
+2. **Credit Protection**: Credits refunded automatically on failure
+3. **Replay Safety**: Prevents double-refunding and duplicate processing
+4. **Audit Trail**: Complete history of failures and replay attempts
+5. **Cleanup**: Automatic removal of old DLQ jobs (30+ days)

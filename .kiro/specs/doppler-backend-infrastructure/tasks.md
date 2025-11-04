@@ -140,8 +140,8 @@
     - Record moderation flags in Firestore job records
     - _Requirements: 4.9, 4.10, 4.11_
 
-- [ ] 6. Implement async job queue with BullMQ
-  - [ ] 6.1 Create BullMQ queue configuration
+- [x] 6. Implement async job queue with BullMQ
+  - [x] 6.1 Create BullMQ queue configuration
     - Initialize queue with Redis connection
     - Configure custom backoff strategy with jitter (±30%)
     - Set max attempts to 5 with exponential backoff
@@ -156,7 +156,7 @@
     - Record timing metrics (classify_ms, prompt_ms, restore_ms, total_ms)
     - _Requirements: 8.1.6, 3.12, 3.13_
   
-  - [ ] 6.3 Implement dead-letter queue and replay tooling
+  - [x] 6.3 Implement dead-letter queue and replay tooling
     - Move exhausted jobs to DLQ after max attempts
     - Trigger credit refunds for failed jobs
     - Create replay script to resubmit jobs from DLQ

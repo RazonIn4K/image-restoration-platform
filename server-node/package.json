@@ -14,7 +14,11 @@
     "lint:doppler": "doppler run -- npm run lint",
     "test:doppler": "doppler run -- npm run test",
     "validate:secrets:doppler": "doppler run -- npm run validate:secrets",
-    "worker:restoration": "node src/queues/workers/restorationWorker.js"
+    "worker:restoration": "node src/queues/workers/restorationWorker.js",
+    "jobs:replay": "node scripts/replay-failed-jobs.js",
+    "jobs:replay:doppler": "doppler run -- npm run jobs:replay",
+    "jobs:status": "node scripts/job-status.js",
+    "jobs:status:doppler": "doppler run -- npm run jobs:status"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.12.0",
