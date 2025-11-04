@@ -193,12 +193,12 @@
     - Close stream on job completion or error
     - _Requirements: 3.8, 3.14_
 
-- [ ] 8. Implement health check endpoints
-  - [ ] 8.1 Implement GET /health/live
+- [x] 8. Implement health check endpoints
+  - [x] 8.1 Implement GET /health/live
     - Return 200 OK unconditionally
     - _Requirements: 5.1_
   
-  - [ ] 8.2 Implement GET /health/ready
+  - [x] 8.2 Implement GET /health/ready
     - Check Redis connectivity (or in-memory fallback status)
     - Check Firestore connectivity (or mock status)
     - Check GCS bucket existence

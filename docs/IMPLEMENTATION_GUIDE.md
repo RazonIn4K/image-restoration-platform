@@ -85,3 +85,10 @@ BullMQ powers asynchronous restoration jobs. Configuration lives in `src/queues/
 - Default job attempts (`JOBS_MAX_ATTEMPTS`, default 5)
 - Retention policies (`JOBS_REMOVE_ON_COMPLETE` = 100, `JOBS_REMOVE_ON_FAIL` = 500)
 - Helper exports `getJobQueue()` and `closeJobQueue()` to reuse the singleton queue/connection across workers and API routes.
+
+`src/queues/workers/restorationWorker.js` hosts the BullMQ worker that processes restoration jobs and updates Firestore status.
+
+## Health Checks
+
+- `GET /health/live`: returns 200 OK unconditionally to indicate the service is running.
+- `GET /health/ready`: verifies Redis, Firestore, and GCS connectivity. Returns 200 with `status: "degraded"` when fallbacks (e.g., in-memory Redis, mock Firestore/GCS) are active, otherwise 503 when any dependency is unreachable. The payload also includes recent request latency metrics (average and P95 in milliseconds) sourced from in-process sampling (`HEALTH_METRIC_SAMPLE_SIZE`).
