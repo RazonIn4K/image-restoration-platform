@@ -117,7 +117,7 @@
     - Return moderation flags for audit logging
     - _Requirements: 4.9, 4.10, 4.11_
 
-- [ ] 5. Implement file upload security and preprocessing
+- [x] 5. Implement file upload security and preprocessing
   - [x] 5.1 Create upload validation middleware
     - Configure Multer with 10 MB size limit and single file constraint
     - Implement magic number validation using file-type library
@@ -141,7 +141,7 @@
     - _Requirements: 4.9, 4.10, 4.11_
 
 - [ ] 6. Implement async job queue with BullMQ
-  - [ ] 6.1 Create BullMQ queue configuration
+- [x] 6.1 Create BullMQ queue configuration
     - Initialize queue with Redis connection
     - Configure custom backoff strategy with jitter (±30%)
     - Set max attempts to 5 with exponential backoff
