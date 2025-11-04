@@ -162,7 +162,7 @@
     - Create replay script to resubmit jobs from DLQ
     - _Requirements: 8.1.3, 8.1.4, 8.1.5_
 
-- [ ] 7. Implement API endpoints
+- [x] 7. Implement API endpoints
   - [x] 7.1 Implement GET /v1/uploads/signed-url
     - Validate Firebase Auth token
     - Generate V4 signed URL for GCS upload (15min TTL)
