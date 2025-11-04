@@ -11,6 +11,10 @@ import { notFoundHandler } from './middleware/notFound.js';
 import { createProblem, errorHandler } from './utils/problem.js';
 import { attachClients } from './middleware/clients.js';
 import { getClients } from './context/clients.js';
+import { attachServices } from './context/services.js';
+import { handleUpload, validateUploadedImage } from './middleware/uploadValidation.js';
+import { preprocessImage } from './middleware/imagePreprocess.js';
+import { moderateImage } from './middleware/moderateImage.js';
 
 assertRequiredSecrets();
 
@@ -20,6 +24,7 @@ app.set('trust proxy', 1);
 
 app.use(requestContext());
 app.use(attachClients());
+app.use(attachServices());
 for (const middleware of securityHeaders()) {
   app.use(middleware);
 }
@@ -43,7 +48,14 @@ apiRouter.use(firebaseAuth());
 const sharedClients = getClients();
 apiRouter.use(rateLimitMiddleware({ store: sharedClients.redis }));
 
-apiRouter.post('/jobs', idempotencyMiddleware({ store: sharedClients.redis }), (_req, _res, next) =>
+apiRouter.post(
+  '/jobs',
+  idempotencyMiddleware({ store: sharedClients.redis }),
+  handleUpload('image'),
+  validateUploadedImage,
+  preprocessImage,
+  moderateImage,
+  (_req, _res, next) =>
   next(
     createProblem({
       type: 'https://docs.image-restoration.ai/problem/not-implemented',

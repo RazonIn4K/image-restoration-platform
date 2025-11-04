@@ -79,29 +79,29 @@
     - Set Content-Disposition headers on download URLs
     - _Requirements: 5.6, 5.7, 8.5.1, 8.5.2, 8.5.3, 8.5.4, 8.5.5, 8.5.6, 8.5.7_
 
-- [ ] 4. Implement service layer (Classifier, Prompt Enhancer, Restorator, Credits)
-  - [ ] 4.1 Create Classifier Service
+- [x] 4. Implement service layer (Classifier, Prompt Enhancer, Restorator, Credits)
+  - [x] 4.1 Create Classifier Service
     - Implement image degradation analysis (blur, noise, low-light, compression, scratch, fade, color-shift)
     - Return confidence scores for each degradation type
     - Support multiple simultaneous degradation types
     - Add OpenTelemetry span instrumentation
     - _Requirements: 8.3.1, 8.3.2_
   
-  - [ ] 4.2 Create Prompt Enhancer Service
+  - [x] 4.2 Create Prompt Enhancer Service
     - Implement degradation-specific prompt templates
     - Merge user custom prompts with degradation guidance
     - Prioritize top 3 degradation types by confidence
     - Add OpenTelemetry span instrumentation
     - _Requirements: 8.3.3, 8.3.4, 8.3.5_
   
-  - [ ] 4.3 Create Restorator Service
+  - [x] 4.3 Create Restorator Service
     - Orchestrate Classifier → Enhancer → Gemini Client workflow
     - Implement retry logic with exponential backoff and jitter
     - Record provider request IDs and cost estimates
     - Add OpenTelemetry span instrumentation for each phase
     - _Requirements: 8.3.6, 8.3.7, 8.3.8, 8.3.9_
   
-  - [ ] 4.4 Create Credits Service
+  - [x] 4.4 Create Credits Service
     - Implement atomic credit check and deduct using Redis DECR
     - Return 402 Payment Required when credits insufficient
     - Cache credit balances in Redis with 60s TTL
@@ -110,7 +110,7 @@
     - Enforce daily free tier limits (2-3 per day)
     - _Requirements: 8.4.1, 8.4.2, 8.4.3, 8.4.4, 8.4.5, 8.4.6, 8.4.7, 8.4.8_
   
-  - [ ] 4.5 Create Moderation Service
+  - [x] 4.5 Create Moderation Service
     - Initialize Google Vision SafeSearch client
     - Implement content moderation with documented thresholds
     - Reject images with LIKELY/VERY_LIKELY ratings for adult/violence/racy
@@ -118,7 +118,7 @@
     - _Requirements: 4.9, 4.10, 4.11_
 
 - [ ] 5. Implement file upload security and preprocessing
-  - [ ] 5.1 Create upload validation middleware
+  - [x] 5.1 Create upload validation middleware
     - Configure Multer with 10 MB size limit and single file constraint
     - Implement magic number validation using file-type library
     - Reject files based on detected MIME type, not extension
@@ -126,7 +126,7 @@
     - Return 413 Content Too Large with optional Retry-After
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
   
-  - [ ] 5.2 Create image preprocessing pipeline with Sharp
+- [x] 5.2 Create image preprocessing pipeline with Sharp
     - Implement auto-orient using sharp().rotate() without arguments
     - Resize images exceeding 2048px preserving aspect ratio
     - Compress JPEG to quality 85
@@ -134,7 +134,7 @@
     - Reattach only sRGB ICC color profile if needed
     - _Requirements: 3.9, 3.10, 3.11, 4.12_
   
-  - [ ] 5.3 Implement SafeSearch moderation integration
+  - [x] 5.3 Implement SafeSearch moderation integration
     - Call Vision SafeSearch API before job processing
     - Return 422 Unprocessable Content for policy violations
     - Record moderation flags in Firestore job records

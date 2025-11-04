@@ -48,3 +48,31 @@ Running without the Doppler environment will terminate the process and print the
 ### Environment Validation Script
 
 `npm run validate:secrets` executes `server-node/scripts/validate-secrets.js`, which asserts the required secrets exist and recommends using `doppler run --` when they are missing. The Express entrypoint (`src/server.js`) invokes the same check during startup.
+
+## File Upload Validation & Preprocessing
+
+Image uploads are accepted only when they meet the following requirements:
+
+- **Field name**: `image`
+- **Maximum size**: 10 MB (requests above the limit return `413 Content Too Large` + `Retry-After` header)
+- **Allowed formats**: JPEG, PNG, WebP (validated via file magic using `file-type`)
+- **Allowed extensions**: `.jpg`, `.jpeg`, `.png`, `.webp`
+- **Protection**: Compound extensions (for example `photo.jpg.php`) and unsupported media types return RFC 7807 problem responses
+
+The middleware lives in `src/middleware/uploadValidation.js` and is wired into `POST /v1/jobs` ahead of downstream processing.
+
+After validation, `src/middleware/imagePreprocess.js` performs normalization via **Sharp**:
+
+- Auto-orients using `rotate()` to respect EXIF orientation
+- Resizes the longest side down to ≤ 2048 px while preserving aspect ratio
+- Encodes the image as JPEG at quality 85 with 4:4:4 chroma sampling
+- Strips all EXIF metadata and attaches only an sRGB ICC profile
+- Stores both original and processed metadata on `req.file` for downstream services
+
+### Content Moderation
+
+The `moderateImage` middleware invokes the `ModerationService` (Google Vision SafeSearch) before any restoration work begins:
+
+- Requests are rejected with HTTP 422 `application/problem+json` responses whenever SafeSearch reports LIKELY/VERY_LIKELY adult, racy, or violent content
+- Moderation audits are persisted to Firestore (`moderation_logs`) with available user/job context
+- Moderation failures now default to **fail closed**—service outages reject content instead of passing it through

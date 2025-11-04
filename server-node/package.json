@@ -16,17 +16,21 @@
     "validate:secrets:doppler": "doppler run -- npm run validate:secrets"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.8.0",
     "@google-cloud/storage": "^7.12.0",
+    "@google-cloud/vision": "^4.3.3",
+    "@google/generative-ai": "^0.8.0",
     "@opentelemetry/api": "^1.8.0",
     "@opentelemetry/sdk-node": "^0.51.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "file-type": "^18.7.0",
     "firebase-admin": "^12.0.0",
     "helmet": "^7.1.0",
     "multer": "^1.4.5-lts.1",
+    "p-limit": "^4.0.0",
     "pino": "^9.14.0",
-    "redis": "^4.6.13"
+    "redis": "^4.6.13",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"
