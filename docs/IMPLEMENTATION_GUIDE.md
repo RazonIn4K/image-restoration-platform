@@ -85,3 +85,10 @@ BullMQ powers asynchronous restoration jobs. Configuration lives in `src/queues/
 - Default job attempts (`JOBS_MAX_ATTEMPTS`, default 5)
 - Retention policies (`JOBS_REMOVE_ON_COMPLETE` = 100, `JOBS_REMOVE_ON_FAIL` = 500)
 - Helper exports `getJobQueue()` and `closeJobQueue()` to reuse the singleton queue/connection across workers and API routes.
+
+## Observability
+
+- OpenTelemetry bootstrap lives in `src/observability/otel.js`. Set `OTEL_ENABLED=false` to disable instrumentation.
+- Configure exporters via standard OTLP environment variables (e.g., `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`).
+- `OTEL_SERVICE_NAME`, `OTEL_SERVICE_NAMESPACE`, and `OTEL_DIAGNOSTIC_LOG_LEVEL` are supported for customization.
+- Structured logs include `trace_id` and `span_id` through Pino mixins, allowing correlation between logs and traces.

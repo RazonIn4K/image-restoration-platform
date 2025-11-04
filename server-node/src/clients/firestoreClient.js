@@ -35,6 +35,7 @@ export class FirestoreClient {
   constructor() {
     initialize();
     this.db = admin.firestore();
+    this.isMock = false;
   }
 
   collection(name) {
@@ -45,6 +46,11 @@ export class FirestoreClient {
     const [collection, doc] = path.split('/');
     return this.collection(collection).doc(doc).set(data, { merge: true });
   }
+
+  async healthCheck() {
+    await this.db.collection('_health_check').limit(1).get();
+    return { ok: true };
+  }
 }
 
 export function createFirestoreClient() {
@@ -53,8 +59,12 @@ export function createFirestoreClient() {
   } catch (error) {
     console.warn('[firestore] Using mock client:', error.message);
     return {
+      isMock: true,
       collection: () => ({ doc: () => ({ set: async () => {} }) }),
       setDoc: async () => {},
+      async healthCheck() {
+        return { ok: true, degraded: true, reason: 'mock-firestore' };
+      },
     };
   }
 }

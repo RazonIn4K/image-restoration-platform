@@ -20,6 +20,7 @@ export class GcsClient {
     const { bucketOverride } = options;
     this.logger = options.logger ?? console;
     this.bucketInfo = bucketOverride ?? buildClient();
+    this.isMock = false;
   }
 
   async ensureLifecyclePolicies() {
@@ -85,6 +86,15 @@ export class GcsClient {
       expiresAt: new Date(expires).toISOString(),
     };
   }
+
+  async healthCheck() {
+    const { bucket } = this.bucketInfo;
+    const [exists] = await bucket.exists();
+    if (!exists) {
+      throw new Error('Bucket not accessible');
+    }
+    return { ok: true };
+  }
 }
 
 export function createGcsClient(options) {
@@ -93,12 +103,16 @@ export function createGcsClient(options) {
   } catch (error) {
     console.warn('[gcs] Falling back to mock client:', error.message);
     return {
+      isMock: true,
       async ensureLifecyclePolicies() {},
       async generateUploadUrl() {
         throw new Error('GCS is not configured.');
       },
       async generateDownloadUrl() {
         throw new Error('GCS is not configured.');
+      },
+      async healthCheck() {
+        return { ok: false, degraded: true, reason: 'mock-gcs' };
       },
     };
   }
