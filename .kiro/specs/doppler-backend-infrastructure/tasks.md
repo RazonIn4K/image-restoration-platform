@@ -230,7 +230,7 @@
     - _Requirements: 6.11_
 
 - [ ] 10. Create comprehensive test suite
-  - [ ] 10.1 Write unit tests for services
+  - [x] 10.1 Write unit tests for services
     - Test Classifier Service with fixture images (blur, noise, combined)
     - Test Prompt Enhancer Service with various degradation inputs
     - Test Restorator Service orchestration flow

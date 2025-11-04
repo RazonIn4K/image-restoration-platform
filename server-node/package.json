@@ -7,12 +7,14 @@
     "dev": "node src/server.js",
     "start": "cross-env NODE_ENV=production node src/server.js",
     "lint": "echo 'lint task pending'",
-    "test": "echo 'test suite pending'",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "validate:secrets": "node scripts/validate-secrets.js",
     "dev:doppler": "doppler run -- npm run dev",
     "start:doppler": "doppler run -- npm run start",
     "lint:doppler": "doppler run -- npm run lint",
     "test:doppler": "doppler run -- npm run test",
+    "test:watch:doppler": "doppler run -- npm run test:watch",
     "validate:secrets:doppler": "doppler run -- npm run validate:secrets"
   },
   "dependencies": {
@@ -32,7 +34,8 @@
     "p-limit": "^4.0.0",
     "pino": "^9.14.0",
     "redis": "^4.6.13",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "vitest": "^1.6.1"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"
