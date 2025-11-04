@@ -21,6 +21,15 @@ function createInMemoryStore() {
   };
 
   return {
+    isFallback() {
+      return true;
+    },
+    getMode() {
+      return 'memory';
+    },
+    async ping() {
+      return 'PONG';
+    },
     async take({ key, limit, intervalSeconds }) {
       const now = Date.now();
       const windowMs = intervalSeconds * 1000;
@@ -178,6 +187,18 @@ export function createRedisStore({ url = DEFAULT_URL } = {}) {
     });
 
   const store = {
+    isFallback() {
+      return useFallbackStore;
+    },
+    getMode() {
+      return useFallbackStore ? 'memory' : 'redis';
+    },
+    async ping() {
+      if (useFallbackStore) {
+        return fallbackStore.ping();
+      }
+      return client.ping();
+    },
     async ready() {
       return readyPromise;
     },

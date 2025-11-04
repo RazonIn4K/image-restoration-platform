@@ -193,12 +193,12 @@
     - Close stream on job completion or error
     - _Requirements: 3.8, 3.14_
 
-- [ ] 8. Implement health check endpoints
-  - [ ] 8.1 Implement GET /health/live
+- [x] 8. Implement health check endpoints
+  - [x] 8.1 Implement GET /health/live
     - Return 200 OK unconditionally
     - _Requirements: 5.1_
   
-  - [ ] 8.2 Implement GET /health/ready
+  - [x] 8.2 Implement GET /health/ready
     - Check Redis connectivity (or in-memory fallback status)
     - Check Firestore connectivity (or mock status)
     - Check GCS bucket existence
@@ -207,22 +207,22 @@
     - Include average and p95 response times
     - _Requirements: 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 9. Implement OpenTelemetry observability
-  - [ ] 9.1 Configure OpenTelemetry SDK
+- [x] 9. Implement OpenTelemetry observability
+  - [x] 9.1 Configure OpenTelemetry SDK
     - Initialize NodeSDK with OTLP exporters
     - Enable auto-instrumentations (HTTP, Express, Redis)
     - Configure service name from Doppler
     - Set up graceful shutdown on SIGTERM
     - _Requirements: 6.9, 6.10_
   
-  - [ ] 9.2 Implement structured logging with Pino
+  - [x] 9.2 Implement structured logging with Pino
     - Configure log level from Doppler
     - Add mixin to include trace_id and span_id in logs
     - Create request logger middleware
     - Log request completion with duration
     - _Requirements: 6.10, 8.2.7_
   
-  - [ ] 9.3 Implement custom metrics
+  - [x] 9.3 Implement custom metrics
     - Create counters for HTTP requests by route and status
     - Create histogram for request duration
     - Create observable gauge for queue depth
