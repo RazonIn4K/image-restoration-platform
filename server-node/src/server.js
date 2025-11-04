@@ -13,6 +13,7 @@ import { attachClients } from './middleware/clients.js';
 import { getClients } from './context/clients.js';
 import { attachServices } from './context/services.js';
 import { handleUpload, validateUploadedImage } from './middleware/uploadValidation.js';
+import { preprocessImage } from './middleware/imagePreprocess.js';
 
 assertRequiredSecrets();
 
@@ -51,6 +52,7 @@ apiRouter.post(
   idempotencyMiddleware({ store: sharedClients.redis }),
   handleUpload('image'),
   validateUploadedImage,
+  preprocessImage,
   (_req, _res, next) =>
   next(
     createProblem({

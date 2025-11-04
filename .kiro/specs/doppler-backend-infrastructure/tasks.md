@@ -126,7 +126,7 @@
     - Return 413 Content Too Large with optional Retry-After
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
   
-  - [ ] 5.2 Create image preprocessing pipeline with Sharp
+- [x] 5.2 Create image preprocessing pipeline with Sharp
     - Implement auto-orient using sharp().rotate() without arguments
     - Resize images exceeding 2048px preserving aspect ratio
     - Compress JPEG to quality 85
