@@ -14,6 +14,7 @@ import { getClients } from './context/clients.js';
 import { attachServices } from './context/services.js';
 import { handleUpload, validateUploadedImage } from './middleware/uploadValidation.js';
 import { preprocessImage } from './middleware/imagePreprocess.js';
+import { moderateImage } from './middleware/moderateImage.js';
 
 assertRequiredSecrets();
 
@@ -53,6 +54,7 @@ apiRouter.post(
   handleUpload('image'),
   validateUploadedImage,
   preprocessImage,
+  moderateImage,
   (_req, _res, next) =>
   next(
     createProblem({

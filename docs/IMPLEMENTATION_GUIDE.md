@@ -68,3 +68,11 @@ After validation, `src/middleware/imagePreprocess.js` performs normalization via
 - Encodes the image as JPEG at quality 85 with 4:4:4 chroma sampling
 - Strips all EXIF metadata and attaches only an sRGB ICC profile
 - Stores both original and processed metadata on `req.file` for downstream services
+
+### Content Moderation
+
+The `moderateImage` middleware invokes the `ModerationService` (Google Vision SafeSearch) before any restoration work begins:
+
+- Requests are rejected with HTTP 422 `application/problem+json` responses whenever SafeSearch reports LIKELY/VERY_LIKELY adult, racy, or violent content
+- Moderation audits are persisted to Firestore (`moderation_logs`) with available user/job context
+- Moderation failures now default to **fail closed**—service outages reject content instead of passing it through

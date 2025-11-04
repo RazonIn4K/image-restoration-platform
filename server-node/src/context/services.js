@@ -66,6 +66,7 @@ export function getServices(clients) {
       
       moderation: createModerationService({
         visionClient,
+        firestoreClient: clients.firestore,
         logger
       })
     };

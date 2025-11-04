@@ -24,10 +24,13 @@ const LIKELIHOOD_SCORES = {
   'VERY_LIKELY': 5
 };
 
+let moderationLoggingWarningLogged = false;
+
 export class ModerationService {
-  constructor({ visionClient, logger } = {}) {
+  constructor({ visionClient, firestoreClient, logger } = {}) {
     this.visionClient = visionClient;
     this.logger = logger ?? console;
+    this.firestore = firestoreClient;
     this.useMockModeration = !visionClient;
     
     if (this.useMockModeration) {
@@ -106,6 +109,7 @@ export class ModerationService {
       }
 
       span.setStatus({ code: SpanStatusCode.OK });
+      await this._recordModerationAudit(result, context);
       return result;
 
     } catch (error) {
@@ -118,7 +122,7 @@ export class ModerationService {
         error: error.message
       });
 
-      return {
+      const failureResult = {
         allowed: false,
         flags: {
           adult: 'UNKNOWN',
@@ -138,6 +142,9 @@ export class ModerationService {
         confidence: 1,
         timestamp: new Date().toISOString()
       };
+
+      await this._recordModerationAudit(failureResult, context);
+      return failureResult;
 
     } finally {
       span.end();
@@ -249,6 +256,36 @@ export class ModerationService {
     return maxScore / 5; // Normalize to 0-1 range
   }
 
+  async _recordModerationAudit(result, context) {
+    if (!this.firestore) {
+      if (!moderationLoggingWarningLogged) {
+        this.logger.warn('[moderation] Firestore client unavailable; moderation audits will not be persisted.');
+        moderationLoggingWarningLogged = true;
+      }
+      return;
+    }
+
+    try {
+      await this.firestore.collection('moderation_logs').add({
+        userId: context.userId || null,
+        jobId: context.jobId || null,
+        requestId: context.requestId || null,
+        allowed: result.allowed,
+        flags: result.flags,
+        rejection: result.rejection || null,
+        error: result.error || null,
+        confidence: result.confidence,
+        timestamp: result.timestamp || new Date().toISOString(),
+      });
+    } catch (error) {
+      this.logger.error('[moderation] Failed to persist moderation audit', {
+        userId: context.userId,
+        jobId: context.jobId,
+        error: error.message,
+      });
+    }
+  }
+
   /**
    * Get moderation statistics for monitoring
    */
@@ -301,11 +338,11 @@ export class ModerationService {
         medical: 'Medical content detection (logged but not rejected)'
       },
       likelihoodLevels: Object.keys(LIKELIHOOD_SCORES),
-      failureMode: 'Allow content if moderation service fails (fail-safe)'
+      failureMode: 'Reject content if moderation service fails (fail-closed)'
     };
   }
 }
 
-export function createModerationService({ visionClient, logger } = {}) {
-  return new ModerationService({ visionClient, logger });
+export function createModerationService({ visionClient, firestoreClient, logger } = {}) {
+  return new ModerationService({ visionClient, firestoreClient, logger });
 }

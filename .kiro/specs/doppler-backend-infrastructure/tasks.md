@@ -134,7 +134,7 @@
     - Reattach only sRGB ICC color profile if needed
     - _Requirements: 3.9, 3.10, 3.11, 4.12_
   
-  - [ ] 5.3 Implement SafeSearch moderation integration
+  - [x] 5.3 Implement SafeSearch moderation integration
     - Call Vision SafeSearch API before job processing
     - Return 422 Unprocessable Content for policy violations
     - Record moderation flags in Firestore job records
